@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHP Zip</title>
+    <style>
+        #drop_zone {
+            border: 5px solid blue;
+            width: 200px;
+            height: 100px;
+        }
+    </style>
+    <script>
+
+        var mem = [];
+
+        // Basado en: https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+        function dragOverHandler(event) {
+            event.preventDefault();
+        }
+        function dropHandler(event) {
+            event.preventDefault();
+            [...event.dataTransfer.files].forEach((file, i) => {
+                upload(file)
+                    .then((data) => {
+                        mem.push({
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            ok: true,
+                            data: data
+                        })
+                    })
+                    .catch(() => {
+                        mem.push({
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            ok: false
+                        })
+                    })
+                    .finally(() => {
+                        updateList();
+                    });
+                console.log(`… file[${i}].name = ${file.name}`);
+            });
+        }
+        // Desde el proyecto GERO de la U. de Chile.
+        function upload(file) {
+            return new Promise((resolve, reject) => {
+                let Reader = new FileReader();
+                Reader.onload = function () {
+                    resolve(Reader.result);
+                };
+                Reader.onerror = function () {
+                    reject();
+                };
+                Reader.readAsDataURL(file);
+            });
+
+        }
+
+        // Desde el proyecto GERO de la U. de Chile.
+        function download(filename, blob) {
+
+            let dataURL = window.URL.createObjectURL(blob);
+
+            if (window.navigator.userAgent.match(/iPad|iPhone/i)) {
+                // iPad or iPhone
+                window.open(dataURL);
+            } else {
+                // Anything else
+                let aref = document.createElementNS("http://www.w3.org/1999/xhtml", "a")
+                aref.href = dataURL;
+                aref.download = filename;
+                aref.click();
+            }
+
+        }
+
+        function createLI(...elements) {
+            let li = document.createElement("li");
+            (elements || []).flat(2).forEach(element => {
+                li.appendChild(element);
+            })
+            return li;
+        }
+
+        function createUL(...elements) {
+            let ul = document.createElement("ul");
+            (elements || []).flat(2).forEach(element => {
+                ul.appendChild(element);
+            })
+            return ul;
+        }
+
+        function updateList() {
+            let fl = document.getElementById("file_list");
+            fl.innerHTML = "";
+            fl.appendChild(
+                createUL(
+                    mem.map(element => {
+                        return createLI(
+                            document.createTextNode(element.name),
+                            createUL(
+                                createLI(document.createTextNode(element.size)),
+                                createLI(document.createTextNode(element.type)),
+                                createLI(document.createTextNode(element.ok ? "OK" : "Error"))
+                            )
+                        );
+                    })));
+        }
+
+        function clickHandler(event) {
+            event.preventDefault();
+            let m = document.getElementById("message");
+            m.innerHTML = "";
+            m.appendChild(document.createTextNode("Enviando..."));
+            post(mem.filter(element => element.ok))
+                .then(data => {
+                    console.log(data);
+                    m.appendChild(document.createTextNode(data.toString()));
+                })
+                .catch(e => {
+                    console.log(e);
+                    m.appendChild(document.createTextNode(e.toString()));
+                })
+        }
+
+        function post(data) {
+            return new Promise(function (resolve, reject) {
+                let formData = new FormData();
+                data.forEach(file => {
+                    let data = atob(file.data.slice(file.data.indexOf(",") + 1));
+                    let bytes = new Uint8Array(data.length);
+                    for (let i = 0; i < data.length; i++) {
+                        bytes[i] = data.charCodeAt(i);
+                    }
+                    let blob = new Blob([bytes, file.type]);
+
+                    formData.append("files[]", blob, file.name);
+                })
+
+                fetch("compress.php", {
+                    method: "POST",
+                    body: formData
+                })
+                    .then(function (response) {
+                        let contentType = response.headers.get("content-type");
+                        if (contentType.includes("application/json")) {
+                            response.json().then(data => { resolve(data); });
+                        } else if (contentType.includes("application/x-download")) {
+                            response.blob().then(blob => {
+                                console.log(blob);
+                                download("archive.zip", blob, contentType);
+                                resolve(blob);
+                            });
+                        } else if (contentType.includes("text/html")) {
+                            response.text().then(text => { resolve(text); });
+                        } else if (contentType.includes("text/")) {
+                            response.text().then(text => { resolve(text); });
+                        }
+
+                    })
+                    .catch(function (e) {
+                        reject(e);
+                    })
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <div id="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
+        <p>Arrastre los archivos a comprimir a este lugar</i>.</p>
+    </div>
+    <div id="file_list"></div>
+    <button onclick="clickHandler(event)">Comprimir</button>
+    <div id="message"></div>
+</body>
+
+</html>
