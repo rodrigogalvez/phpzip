@@ -87,7 +87,7 @@ Un div llamado *drop_zone* se utiliza para recibir los archivos.
 
 ```html
 <div id="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
-    <p>Arrastre los archivos a comprimir a este lugar</i>.</p>
+    <p>Arrastre los archivos a comprimir a este lugar.</p>
 </div>
 ```
 
