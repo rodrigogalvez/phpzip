@@ -22,10 +22,44 @@
         }
         function dropHandler(event) {
             event.preventDefault();
-            [...event.dataTransfer.files].forEach((blob, i) => {
-                mem.push(blob)
-                updateList();
+            [...event.dataTransfer.files].forEach((file, i) => {
+                upload(file)
+                    .then((data) => {
+                        mem.push({
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            ok: true,
+                            data: data
+                        })
+                    })
+                    .catch(() => {
+                        mem.push({
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            ok: false
+                        })
+                    })
+                    .finally(() => {
+                        updateList();
+                    });
+                console.log(`… file[${i}].name = ${file.name}`);
             });
+        }
+        // Desde el proyecto GERO de la U. de Chile.
+        function upload(file) {
+            return new Promise((resolve, reject) => {
+                let Reader = new FileReader();
+                Reader.onload = function () {
+                    resolve(Reader.result);
+                };
+                Reader.onerror = function () {
+                    reject();
+                };
+                Reader.readAsDataURL(file);
+            });
+
         }
 
         // Desde el proyecto GERO de la U. de Chile.
@@ -72,7 +106,8 @@
                             document.createTextNode(element.name),
                             createUL(
                                 createLI(document.createTextNode(element.size)),
-                                createLI(document.createTextNode(element.type))
+                                createLI(document.createTextNode(element.type)),
+                                createLI(document.createTextNode(element.ok ? "OK" : "Error"))
                             )
                         );
                     })));
@@ -83,7 +118,7 @@
             let m = document.getElementById("message");
             m.innerHTML = "";
             m.appendChild(document.createTextNode("Enviando..."));
-            post(mem)
+            post(mem.filter(element => element.ok))
                 .then(data => {
                     console.log(data);
                     m.appendChild(document.createTextNode(data.toString()));
@@ -97,8 +132,15 @@
         function post(data) {
             return new Promise(function (resolve, reject) {
                 let formData = new FormData();
-                data.forEach(blob => {
-                    formData.append("files[]", blob, blob.name);
+                data.forEach(file => {
+                    let data = atob(file.data.slice(file.data.indexOf(",") + 1));
+                    let bytes = new Uint8Array(data.length);
+                    for (let i = 0; i < data.length; i++) {
+                        bytes[i] = data.charCodeAt(i);
+                    }
+                    let blob = new Blob([bytes, file.type]);
+
+                    formData.append("files[]", blob, file.name);
                 })
 
                 fetch("compress.php", {

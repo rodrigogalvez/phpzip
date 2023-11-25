@@ -103,19 +103,12 @@ Otro div llamado *message* muestra mensajes de error si los hubiere. También en
 <div id="message"></div>
 ```
 
-De las funciones implementadas en JavaScript, la más importante es la función *post*. Esta prepara los archivos cargados en memoria para envairlos al servidor como si se enviaran usando el formulario del archivo *flat.html*. Para esto, crea un objeto *FormData* al que se le agrega una variable llamada *file[]*. El contenido del archivo se adjunta mediante un objeto *blob*.
+De las funciones implementadas en JavaScript, la más importante es la función *post*. Esta prepara los archivos cargados en memoria para envairlos al servidor como si se enviaran usando el formulario del archivo *flat.html*. Para esto, crea un objeto *FormData* al que se le agrega una variable llamada *file[]*. El contenido del archivo se adjunta mediante un objeto *blob*[^1].
 
 ```javascript
 let formData = new FormData();
-data.forEach(file => {
-    let data = atob(file.data.slice(file.data.indexOf(",") + 1));
-    let bytes = new Uint8Array(data.length);
-    for (let i = 0; i < data.length; i++) {
-        bytes[i] = data.charCodeAt(i);
-    }
-    let blob = new Blob([bytes, file.type]);
-
-    formData.append("files[]", blob, file.name);
+data.forEach(blob => {
+    formData.append("files[]", blob, blob.name);
 })
 ```
 
@@ -196,18 +189,16 @@ function updateList() {
                     document.createTextNode(element.name),
                     createUL(
                         createLI(document.createTextNode(element.size)),
-                        createLI(document.createTextNode(element.type)),
-                        createLI(document.createTextNode(element.ok ? "OK" : "Error"))
+                        createLI(document.createTextNode(element.type))
                     )
                 );
             })));
 }
 ```
 
-
-
-
 ## Referencias
 
-- [Subrutina reArrayFiles](https://www.php.net/manual/en/features.file-upload.multiple.php#53240)
-- [Página web con Drag'n Drop desde el escritorio](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop)
+* [Subrutina reArrayFiles](https://www.php.net/manual/en/features.file-upload.multiple.php#53240)
+* [Página web con Drag'n Drop desde el escritorio](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop)
+
+[^1]: Corrección noviembre 23, 2023, archivo *dragandrop.hmtl*: En la primera versión de un progrma similar, debía manejar los archivos en memoria. Por eso se leen los archivos con un objeto *FileReader* y más tarde se envían al servidor. En este ejemplo, los archivos son enviados directamente, por lo que no es necesario leerlos, sino que se envía directamente el *blob* que corresponde al archivo cargado.
